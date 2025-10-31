@@ -18,6 +18,36 @@ USER_FILE = "users.json"
 LOG_DIR = "logs"
 os.makedirs(LOG_DIR, exist_ok=True)
 
+# ========== GitHub 連携 ==========
+def upload_to_github(file_path, message="Add log file"):
+    """ローカルに保存されたログファイルをGitHubに自動コミット"""
+    try:
+        token = st.secrets["GITHUB_TOKEN"]
+        repo = st.secrets["REPO_NAME"]
+    except Exception as e:
+        st.error("❌ GitHubの設定が見つかりません。Streamlit Secretsに GITHUB_TOKEN と REPO_NAME を登録してください。")
+        return False
+
+    file_name = os.path.basename(file_path)
+    url = f"https://api.github.com/repos/{repo}/contents/logs/{file_name}"
+    headers = {"Authorization": f"token {token}"}
+
+    with open(file_path, "rb") as f:
+        content = base64.b64encode(f.read()).decode()
+
+    data = {
+        "message": message,
+        "content": content,
+    }
+
+    response = requests.put(url, headers=headers, json=data)
+    if response.status_code in (200, 201):
+        st.success(f"✅ GitHubにログをアップロードしました: `{file_name}`")
+        return True
+    else:
+        st.error(f"⚠️ アップロード失敗: {response.json()}")
+        return False
+
 # ========== ユーザー管理 ==========
 def load_users():
     if os.path.exists(USER_FILE):
